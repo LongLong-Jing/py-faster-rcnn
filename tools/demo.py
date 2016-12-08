@@ -12,7 +12,7 @@ Demo script showing detections in sample images.
 
 See README.md for installation instructions before running.
 """
-
+import numpy as np
 import _init_paths
 from fast_rcnn.config import cfg
 from fast_rcnn.test import im_detect
@@ -25,16 +25,14 @@ import caffe, os, sys, cv2
 import argparse
 
 CLASSES = ('__background__',
-           'aeroplane', 'bicycle', 'bird', 'boat',
-           'bottle', 'bus', 'car', 'cat', 'chair',
-           'cow', 'diningtable', 'dog', 'horse',
-           'motorbike', 'person', 'pottedplant',
-           'sheep', 'sofa', 'train', 'tvmonitor')
+           'alb','bet', 'dol', 'lag', 'other','shark', 'yft')
 
 NETS = {'vgg16': ('VGG16',
                   'VGG16_faster_rcnn_final.caffemodel'),
         'zf': ('ZF',
                   'ZF_faster_rcnn_final.caffemodel')}
+
+TESTFILE = open('TestResult.csv', 'w+')
 
 
 def vis_detections(im, class_name, dets, thresh=0.5):
@@ -79,29 +77,33 @@ def demo(net, image_name):
     # Detect all object classes and regress object bounds
     timer = Timer()
     timer.tic()
-    scores, boxes = im_detect(net, im)
+    scores, boxes = im_detect(net, im)   
     timer.toc()
     print ('Detection took {:.3f}s for '
            '{:d} object proposals').format(timer.total_time, boxes.shape[0])
-
+    NewScore = np.zeros((8,), dtype=np.float);
     # Visualize detections for each class
     CONF_THRESH = 0.8
     NMS_THRESH = 0.3
-    for cls_ind, cls in enumerate(CLASSES[1:]):
+    for cls_ind, cls in enumerate(CLASSES[1:]):       # class index and class name 
         cls_ind += 1 # because we skipped background
         cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
         cls_scores = scores[:, cls_ind]
+        print('SCORE LENGTH is:  '+str(cls_scores.shape))
+	NewScore =NewScore + cls_scores;
         dets = np.hstack((cls_boxes,
                           cls_scores[:, np.newaxis])).astype(np.float32)
-        keep = nms(dets, NMS_THRESH)
+        keep = nms(dets, NMS_THRESH)    #Non-Maximum Suppression
         dets = dets[keep, :]
-        vis_detections(im, cls, dets, thresh=CONF_THRESH)
+        #vis_detections(im, cls, dets, thresh=CONF_THRESH)
+    SCORE_STR = str(NewScore[0])+'  '+ str(NewScore[1])+'  '+str(NewScore[2])+'  '+str(NewScore[3])+'  '+str(NewScore[4])+'  '+str(NewScore[5])+'  '+str(NewScore[6])+'  '+str(NewScore[7]);
+    TESTFILE.write(image_name+'   '+ SCORE_STR  + '\n')
 
 def parse_args():
     """Parse input arguments."""
     parser = argparse.ArgumentParser(description='Faster R-CNN demo')
     parser.add_argument('--gpu', dest='gpu_id', help='GPU device id to use [0]',
-                        default=0, type=int)
+                        default=1, type=int)
     parser.add_argument('--cpu', dest='cpu_mode',
                         help='Use CPU mode (overrides --gpu)',
                         action='store_true')
@@ -140,9 +142,13 @@ if __name__ == '__main__':
     im = 128 * np.ones((300, 500, 3), dtype=np.uint8)
     for i in xrange(2):
         _, _= im_detect(net, im)
-
-    im_names = ['000456.jpg', '000542.jpg', '001150.jpg',
-                '001763.jpg', '004545.jpg']
+    FP = open('./TestFile.txt','r');
+    im_names = []
+    for line in FP:
+	print(line)
+        im_names.append(str(line[:-1]));    # Get the list of test images
+    #im_names = ['1.jpg', '2.jpg', '3.jpg',
+    #           '4.jpg', '5.jpg','6.jpg', '7.jpg']
     for im_name in im_names:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for data/demo/{}'.format(im_name)
